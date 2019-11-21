@@ -34,10 +34,10 @@ W_init = np.random.normal(size=X.shape[1], loc=0, scale=1)
 logistic = problem.LogisticL1(X, (y+1)/2, 0.1)
 
 #%%
-for pol in [policy.RandomPolicy(logistic), policy.MaxRPolicy(logistic), policy.MaxEtaPolicy(logistic)]:
-    s = policy.Solver(np.array(W_init, copy=True), pol, logistic).train(1000)
+for pol in [policy.RandomPolicy(logistic), policy.MaxRPolicy(logistic), policy.MaxEtaPolicy(logistic), policy.BMaxRPolicy(logistic)]:
+    s = policy.Solver(np.array(W_init, copy=True), pol, logistic).train(10)
     plt.plot(s)
-plt.legend(['random', 'max_r', 'max_eta'])
+plt.legend(['random', 'max_r', 'max_eta', 'B_max_r'])
 plt.xlabel('iterations')
 plt.ylabel('Logistic loss')
 plt.yscale('log')

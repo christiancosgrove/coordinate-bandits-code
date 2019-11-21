@@ -54,19 +54,33 @@ def sigmoid(x):
 def shrink(x, lam):
     return np.sign(x) * np.maximum(np.abs(x) - lam, 0)
 
-class LogisticL1(Problem):
-    def __init__(self, A, y, lam):
+class L1Problem(Problem):
+    def __init__(self, A, lam):
         super().__init__(A)
-        self.y = y
         self.B = None
         self.lam = lam
-        self.beta = 1
 
     def g(self, i, xi):
         return self.lam * np.abs(xi)
 
     def gstar(self, aw):
         return self.B * np.maximum(np.abs(aw) - self.lam, 0)
+
+    def kappa(self, i, x):
+        part = self.partial_f(i, self.A @ x)
+        return np.abs(x[i] - self.B * shrink(part, self.lam))
+
+    def update(self, i, x):
+        if self.B is None:
+            self.B = self.loss(x) / self.lam
+        part = self.partial_f(i, self.A @ x)
+        x[i] = shrink(x[i] - 4*part, 4*self.lam)
+
+class LogisticL1(L1Problem):
+    def __init__(self, A, y, lam):
+        super().__init__(A, lam)
+        self.y = y
+        self.beta = 1
 
     def f(self, Ax):
         pred = sigmoid(Ax)
@@ -79,12 +93,17 @@ class LogisticL1(Problem):
         p = p @ self.A[:, i] / self.y.shape[0]
         return p
 
-    def kappa(self, i, x):
-        part = self.partial_f(i, self.A @ x)
-        return np.abs(x[i] - self.B * shrink(part, self.lam))
+class Lasso(L1Problem):
+    def __init__(self, A, y, lam):
+        super().__init__(A, lam)
+        self.y = y
+        self.beta = 1
 
-    def update(self, i, x):
-        if self.B is None:
-            self.B = self.loss(x) / self.lam
-        part = self.partial_f(i, self.A @ x)
-        x[i] = shrink(x[i] - 4*part, 4*self.lam)
+    def f(self, Ax):
+        return np.mean((self.y - Ax)**2)
+
+    def partial_f(self, i, Ax):
+        p = (self.y-Ax)
+        p = p @ self.A[:, i] / self.y.shape[0]
+        return p
+
