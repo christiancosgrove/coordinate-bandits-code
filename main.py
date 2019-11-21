@@ -77,12 +77,16 @@ def reward(i, W, X, y, lam, B):
     else:
         return Gi - norma * kappai**2 / (2*beta)
 
-lam = 0.01
+def etas(W, X, y, lam, B):
+    gaps = [gap(i, W, X, y, lam, B) for i in range(W.shape[0])]
+    return np.array(gaps)/np.sum(gaps)
+
+lam = 0.1
 vals = []
 coords_chosen = []
 W_init = np.random.normal(size=X.shape[1], loc=0, scale=1)
 
-NUM_ITERATIONS = 50
+NUM_ITERATIONS = 300
 def greedy_coordinate(W_init):
     W = np.array(W_init, copy=True)
     losses_greedy=[]
@@ -109,6 +113,22 @@ def greedy_coordinate(W_init):
         # print(l_after)
     return losses_greedy
 
+
+def greedy_eta_coordinate(W_init):
+    W = np.array(W_init, copy=True)
+    losses_greedy=[]
+    for j in tqdm(range(NUM_ITERATIONS)):
+        # Use the 'Lipschitzing' trick - we know that the iterates are contained in ball of radius B
+        if j == 0:
+            B = loss_logistic(X, y, W, lam) / lam
+        i = np.argmax(etas(W, X, y, lam, B))
+        coords_chosen.append(i)
+        update_coord(W, i, X, y, lam)
+        l_after = loss_logistic(X, y, W, lam)
+        losses_greedy.append(l_after)
+        # print(l_after)
+    return losses_greedy
+
 def random_coordinate(W_init):
     W = np.array(W_init, copy=True)
     losses_random=[]
@@ -124,12 +144,34 @@ def random_coordinate(W_init):
         # print(l_after)
     return losses_random
 
+import policy
+import problem
+W_init = np.random.normal(size=X.shape[1], loc=0, scale=1)
+logistic = problem.LogisticL1(X, (y+1)/2, 0.1)
+
+samples = [
+    policy.Solver(np.array(W_init, copy=True), pol, logistic).train(100)
+    for pol in [policy.RandomPolicy(logistic), policy.MaxRPolicy(logistic), policy.MaxEtaPolicy(logistic)]
+]
 #%%
-plt.plot(greedy_coordinate(W_init))
-plt.plot(random_coordinate(W_init))
-plt.legend(['greedy','random'])
+for s in samples:
+    plt.plot(s)
+plt.legend(['random', 'max_r', 'max_eta'])
 plt.xlabel('iterations')
 plt.ylabel('Logistic loss')
+plt.yscale('log')
+plt.title('Comparison of different coordinate policies')
+plt.show()
+
+
+#%%
+plt.plot(greedy_coordinate(W_init))
+plt.plot(greedy_eta_coordinate(W_init))
+plt.plot(random_coordinate(W_init))
+plt.legend(['greedy','greedy_eta','random'])
+plt.xlabel('iterations')
+plt.ylabel('Logistic loss')
+plt.yscale('log')
 plt.show()
 # print('Result', loss_logistic(X, y, W, lam))
 # for _ in range(500):
@@ -139,5 +181,8 @@ plt.show()
 #         i = coords_chosen[j]
 #         update_coord(W, i, X, y, lam)
 #     print('Result2', loss_logistic(X, y, W, lam))
+
+# %%
+
 
 # %%
