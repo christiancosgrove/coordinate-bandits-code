@@ -1,4 +1,6 @@
 import numpy as np
+from numba import njit
+
 
 class Problem(object):
     def __init__(self, A):
@@ -6,7 +8,7 @@ class Problem(object):
         self.A = A
 
     def loss(self, x):
-        return self.f(self.A @ x) + np.sum([self.g(i, x) for i in range(x.shape[0])])
+        return self.f(self.A @ x) + np.sum([self.g(i, x[i]) for i in range(x.shape[0])])
 
     def g(self, i, xi):
         raise NotImplementedError
@@ -47,10 +49,11 @@ class Problem(object):
     def update(self, i, x):
         raise NotImplementedError
 
-
+@njit
 def sigmoid(x):
     return 1.0/(1.0+np.exp(-x))
 
+@njit
 def shrink(x, lam):
     return np.sign(x) * np.maximum(np.abs(x) - lam, 0)
 
@@ -75,6 +78,7 @@ class L1Problem(Problem):
             self.B = self.loss(x) / self.lam
         part = self.partial_f(i, self.A @ x)
         x[i] = shrink(x[i] - 4*part, 4*self.lam)
+        # assert (x < self.B).all()
 
 class LogisticL1(L1Problem):
     def __init__(self, A, y, lam):
@@ -83,14 +87,24 @@ class LogisticL1(L1Problem):
         self.beta = 1
 
     def f(self, Ax):
-        pred = sigmoid(Ax)
-        loss = -self.y * np.log(pred)
-        loss += -(1-self.y) * np.log(1 - pred)
-        return np.mean(loss)
+        return self._f(Ax, self.y)
 
+    @staticmethod
+    @njit
+    def _f(Ax, y):
+        pred = sigmoid(Ax)
+        loss = -y * np.log(pred)
+        loss += -(1-y) * np.log(1 - pred)
+        return np.mean(loss)
+    
     def partial_f(self, i, Ax):
-        p = -(self.y-sigmoid(Ax)) 
-        p = p @ self.A[:, i] / self.y.shape[0]
+        return self._partial_f(i, Ax, self.y, self.A)
+    
+    @staticmethod
+    @njit
+    def _partial_f(i, Ax, y, A):
+        p = -(y-sigmoid(Ax)) 
+        p = p @ A[:, i] / y.shape[0]
         return p
 
 class Lasso(L1Problem):
@@ -100,10 +114,20 @@ class Lasso(L1Problem):
         self.beta = 1
 
     def f(self, Ax):
-        return np.mean((self.y - Ax)**2)
+        return self._f(Ax, self.y)
+    @staticmethod
+    @njit
+    def _f(Ax, y):
+        return np.mean((y - Ax)**2)
 
+
+    @njit
     def partial_f(self, i, Ax):
-        p = (self.y-Ax)
-        p = p @ self.A[:, i] / self.y.shape[0]
+        self._partial_f(i, Ax, self.A, self.y)
+    @staticmethod
+    @njit
+    def _partial_f(i, Ax, A, y):
+        p = (y-Ax)
+        p = p @ A[:, i] / y.shape[0]
         return p
 

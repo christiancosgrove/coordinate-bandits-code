@@ -1,5 +1,6 @@
 from problem import *
 import numpy as np
+from tqdm import tqdm
 
 class CoordinateDescentPolicy(object):
     def __init__(self, problem: Problem):
@@ -49,15 +50,41 @@ class BMaxRPolicy(CoordinateDescentPolicy):
             # Default: set E=d/2
             self.E = x.shape[0] //2
 
-        if np.random.uniform() < self.epsilon:
-            return np.random.randint(x.shape[0])
-        
         if self.iter % self.E == 0:
             self.rs = [self.problem.reward(i,x) for i in range(x.shape[0])]
 
-        imax = np.argmax(rs)
-        rs[imax] = self.problem.reward(imax,x)
+        if np.random.uniform() < self.epsilon:
+            imax = np.random.randint(x.shape[0])
+        else:
+            imax = np.argmax(self.rs)
+        self.rs[imax] = self.problem.reward(imax,x)
 
+        self.iter += 1
+        return imax
+
+class BMaxEtaPolicy(CoordinateDescentPolicy):
+    def __init__(self, problem):
+        super().__init__(problem)
+
+        self.E = None
+        self.epsilon=1e-2
+        self.iter = 0
+
+    def get(self, x):
+        if self.E is None:
+            # Default: set E=d/2
+            self.E = x.shape[0] //2
+
+        if self.iter % self.E == 0:
+            self.etas = self.problem.etas(x)
+
+        if np.random.uniform() < self.epsilon:
+            imax = np.random.randint(x.shape[0])
+        else:
+            imax = np.argmax(self.etas)
+        # self.etas[imax] = self.problem.reward(imax,x)
+
+        self.iter += 1
         return imax
 
 class Solver(object):
@@ -68,9 +95,9 @@ class Solver(object):
 
     def train(self, iterations):
         losses = []
-        for i in range(iterations):
+        for i in tqdm(range(iterations)):
+            losses.append(self.problem.loss(self.x))
             coord = self.policy.get(self.x)
             self.problem.update(coord, self.x)
-            losses.append(self.problem.loss(self.x))
 
         return losses
