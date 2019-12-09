@@ -58,10 +58,10 @@ def shrink(x, lam):
     return np.sign(x) * np.maximum(np.abs(x) - lam, 0)
 
 class L1Problem(Problem):
-    def __init__(self, A, lam):
+    def __init__(self, A, lam, x):
         super().__init__(A)
-        self.B = None
         self.lam = lam
+        self.B = self.loss(x) / self.lam
 
     def g(self, i, xi):
         return self.lam * np.abs(xi)
@@ -74,17 +74,15 @@ class L1Problem(Problem):
         return np.abs(x[i] - self.B * shrink(part, self.lam))
 
     def update(self, i, x):
-        if self.B is None:
-            self.B = self.loss(x) / self.lam
         part = self.partial_f(i, self.A @ x)
         x[i] = shrink(x[i] - 4*part, 4*self.lam)
         # assert (x < self.B).all()
 
 class LogisticL1(L1Problem):
-    def __init__(self, A, y, lam):
-        super().__init__(A, lam)
+    def __init__(self, A, y, lam, x):
         self.y = y
         self.beta = 1
+        super().__init__(A, lam, x)
 
     def f(self, Ax):
         return self._f(Ax, self.y)
@@ -108,10 +106,10 @@ class LogisticL1(L1Problem):
         return p
 
 class Lasso(L1Problem):
-    def __init__(self, A, y, lam):
-        super().__init__(A, lam)
+    def __init__(self, A, y, lam, x):
         self.y = y
         self.beta = 1
+        super().__init__(A, lam, x)
 
     def f(self, Ax):
         return self._f(Ax, self.y)
