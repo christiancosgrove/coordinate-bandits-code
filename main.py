@@ -6,10 +6,10 @@ import matplotlib.pyplot as plt
 import policy
 import problem
 from dataset import load_dataset
-
+#%%
 DATA_DIR='./data'
 data_files = os.listdir(DATA_DIR)
-
+#%%
 def experiment(dataset_name, problem_type):
     X, y = load_dataset(os.path.join(DATA_DIR, dataset_name))
 
@@ -36,16 +36,12 @@ def experiment(dataset_name, problem_type):
     plt.yscale('log')
     plt.title('Comparison of different coordinate policies')
     plt.show()
-#%%
-# Logistic regression experiment
-experiment(data_files[0], problem.LogisticL1)
 
-#%%
-
+    
 def experiment_epsilon(dataset_name, problem_type):
     X, y = load_dataset(os.path.join(DATA_DIR, dataset_name))
 
-    W_init = np.random.normal(size=X.shape[1], loc=0, scale=0.01)
+    W_init = np.random.normal(size=X.shape[1], loc=0, scale=10)
     logistic = problem_type(X, y, 0.1, W_init)
     eps = [1e-3, 5e-3, 1e-2, 5e-2, 1e-1, 5e-1]
     samps = []
@@ -57,13 +53,19 @@ def experiment_epsilon(dataset_name, problem_type):
         plt.plot(np.array(s))
     plt.legend(['$\\varepsilon={}$'.format(e) for e in eps])
     plt.xlabel('iterations')
-    plt.ylabel('Logistic loss')
+    plt.ylabel('Loss for {}'.format(problem_type))
     # plt.yscale('log')
     plt.title('Comparison of B_max_r varying $\\varepsilon$')
     plt.show()
 
 #%%
-experiment_epsilon(data_files[0], problem.LogisticL1)
+# Logistic regression experiment
+# experiment(data_files[0], problem.LogisticL1)
+
+#%%
+
+#%%
+# experiment_epsilon(data_files[0], problem.LogisticL1)
 # %%
 
 # Lasso experiment

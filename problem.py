@@ -75,7 +75,7 @@ class L1Problem(Problem):
 
     def update(self, i, x):
         part = self.partial_f(i, self.A @ x)
-        x[i] = shrink(x[i] - 4*part, 4*self.lam)
+        x[i] = shrink(x[i] - part, self.lam)
         # assert (x < self.B).all()
 
 class LogisticL1(L1Problem):
@@ -88,7 +88,7 @@ class LogisticL1(L1Problem):
         return self._f(Ax, self.y)
 
     @staticmethod
-    @njit
+    # @njit
     def _f(Ax, y):
         pred = sigmoid(Ax)
         loss = -y * np.log(pred)
@@ -99,7 +99,7 @@ class LogisticL1(L1Problem):
         return self._partial_f(i, Ax, self.y, self.A)
     
     @staticmethod
-    @njit
+    # @njit
     def _partial_f(i, Ax, y, A):
         p = -(y-sigmoid(Ax)) 
         p = p @ A[:, i] / y.shape[0]
@@ -116,16 +116,22 @@ class Lasso(L1Problem):
     @staticmethod
     @njit
     def _f(Ax, y):
+        print('f', np.mean((y - Ax)**2))
         return np.mean((y - Ax)**2)
 
+    def update(self, i, x):
+        x_not = np.array(x)
+        x_not[i] = 0
+        norm = (self.A[:, i] ** 2).sum()
+        x[i] = shrink(self.A[:, i].T @ (self.y - self.A @ x_not) / norm, self.lam / norm)
 
-    @njit
+    # @njit
     def partial_f(self, i, Ax):
-        self._partial_f(i, Ax, self.A, self.y)
+        return self._partial_f(i, Ax, self.A, self.y)
     @staticmethod
     @njit
     def _partial_f(i, Ax, A, y):
         p = (y-Ax)
-        p = p @ A[:, i] / y.shape[0]
+        p = -p @ A[:, i] / y.shape[0]
         return p
 
